@@ -54,6 +54,17 @@ function foreachAttribute(node, fn) {
 }
 
 
+let attributeGetReflects = {
+	value: node => node.value,
+};
+
+function getValue(node, attribute) {
+	if (attributeGetReflects.hasOwnProperty(attribute.name)) {
+		return attributeGetReflects[attribute.name](node);
+	} else {
+		return attribute.value;
+	}
+}
 
 let attributeSetReflects = {
 	value: (node, val) => node.value = val,
@@ -70,16 +81,22 @@ function bindDom(model, selector) {
 	}
 
 	function updateNode(node, template) {
-		node.nodeValue = getNewValue(template);
+		let newValue = getNewValue(template);
+
+		if (node.nodeValue !== newValue)
+			node.nodeValue = newValue;
 	}
 
 	function updateAttribute(node, attribute, template) {
 		let newValue = getNewValue(template);
 
-		if (attributeSetReflects.hasOwnProperty(attribute.name))
-			attributeSetReflects[attribute.name](node, newValue);
-		else
-			attribute.value = newValue;
+		if (getValue(node, attribute) !== newValue) {
+			if (attributeSetReflects.hasOwnProperty(attribute.name)) {
+				attributeSetReflects[attribute.name](node, newValue);
+			} else {
+				attribute.value = newValue;
+			}
+		}
 	}
 
 	let elementAttributeChangeReflects = {
@@ -89,6 +106,8 @@ function bindDom(model, selector) {
 			}),
 		},
 	};
+
+
 
 	let fnSet = {
 		textNode: node => {
@@ -115,16 +134,17 @@ function bindDom(model, selector) {
 					updateAttribute(node, attribute, template);
 				});
 
-				let refelcts;
+				let eventReflects;
 				if (elementAttributeChangeReflects.hasOwnProperty(node.nodeName)) {
-					refelcts = elementAttributeChangeReflects[node.nodeName];
+					eventReflects = elementAttributeChangeReflects[node.nodeName];
 				} else {
-					refelcts = {};
+					eventReflects = {};
 				}
 
-				if (refelcts.hasOwnProperty(attribute.name)) {
-					refelcts[attribute.name](node, () => {
+				if (eventReflects.hasOwnProperty(attribute.name)) {
+					eventReflects[attribute.name](node, () => {
 						model.$_listener.emit(v);
+						model[v] = getValue(node, attribute);
 						// updateAttribute(node, attribute, template);
 					});
 				}

@@ -1,7 +1,7 @@
 const Reactivum = require('./reactivum.js');
 
 let demoVum = Reactivum({
-	input: '',
+	input: 'hi',
 	result: 0,
 }, '#demo');
 
