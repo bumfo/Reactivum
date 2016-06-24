@@ -2,7 +2,8 @@ const Emitter = require('./emitter.js');
 const ready = require('./ready.js');
 
 class Reactive {
-	constructor() {
+	constructor(model) {
+		this.$_model = model;
 		this.$_emitter = new Emitter();
 		this.$_listener = new Emitter();
 	}
@@ -13,7 +14,7 @@ class Reactive {
 }
 
 function Model(model) {
-	let reactive = new Reactive();
+	let reactive = new Reactive(model);
 
 	Object.keys(model).forEach(name => {
 		Object.defineProperty(reactive, name, {
@@ -103,19 +104,21 @@ function bindDom(model, selector) {
 		}
 	}
 
-	function fetchValues(node, attribute, template) {
-		let value = getAttributeValue(node, attribute);
-
-		let names = [];
-		let regex = new RegExp('^' + template.replace(/[\[\]+\.*\(\)\^\$]/g, u => '\'' + u).replace(reg, (u, v) => {
+	function getTemplateFetchRegex(template, names) {
+		return new RegExp('^' + template.replace(/[\[\]+\.*\(\)\^\$]/g, u => '\\' + u).replace(reg, (u, v) => {
 			names.push(v);
 			return '(.*?)';
-		}).replace(/[\{\}]/g, u => '\'' + u) + '$');
+		}).replace(/[\{\}]/g, u => '\\' + u) + '$');
+	}
+
+	function fetchValues(node, attribute, regex, names) {
+		let value = getAttributeValue(node, attribute);
 
 		let match = value.match(regex);
 
-		if (!match)
+		if (!match) {
 			return null;
+		}
 
 		let result = {};
 
@@ -156,8 +159,11 @@ function bindDom(model, selector) {
 		attribute: (node, attribute) => {
 			let template = attribute.value;
 
+			let names = [];
+			let regex = getTemplateFetchRegex(template, names);
+
 			let handler = () => {
-				let values = fetchValues(node, attribute, template);
+				let values = fetchValues(node, attribute, regex, names);
 
 				if (!values) {
 					updateAttribute(node, attribute, template);
