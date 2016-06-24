@@ -58,7 +58,7 @@ let attributeGetReflects = {
 	value: node => node.value,
 };
 
-function getValue(node, attribute) {
+function getAttributeValue(node, attribute) {
 	if (attributeGetReflects.hasOwnProperty(attribute.name)) {
 		return attributeGetReflects[attribute.name](node);
 	} else {
@@ -70,12 +70,20 @@ let attributeSetReflects = {
 	value: (node, val) => node.value = val,
 };
 
+function setAttributeValue(node, attribute, value) {
+	if (attributeSetReflects.hasOwnProperty(attribute.name)) {
+		attributeSetReflects[attribute.name](node, value);
+	} else {
+		attribute.value = value;
+	}
+}
+
 function bindDom(model, selector) {
-	let rep = /\{\{\s*([a-zA-Z_$][\w$]*)\s*\}\}/g;
+	let reg = /\{\{\s*([a-zA-Z_$][\w$]*)\s*\}\}/g;
 	let container = document.querySelector(selector);
 
 	function getNewValue(template) {
-		return template.replace(rep, (u, v) => {
+		return template.replace(reg, (u, v) => {
 			return model[v];
 		});
 	}
@@ -90,13 +98,32 @@ function bindDom(model, selector) {
 	function updateAttribute(node, attribute, template) {
 		let newValue = getNewValue(template);
 
-		if (getValue(node, attribute) !== newValue) {
-			if (attributeSetReflects.hasOwnProperty(attribute.name)) {
-				attributeSetReflects[attribute.name](node, newValue);
-			} else {
-				attribute.value = newValue;
-			}
+		if (getAttributeValue(node, attribute) !== newValue) {
+			setAttributeValue(node, attribute, newValue);
 		}
+	}
+
+	function fetchValues(node, attribute, template) {
+		let value = getAttributeValue(node, attribute);
+
+		let names = [];
+		let regex = new RegExp('^' + template.replace(/[\[\]+\.*\(\)\^\$]/g, u => '\'' + u).replace(reg, (u, v) => {
+			names.push(v);
+			return '(.*?)';
+		}).replace(/[\{\}]/g, u => '\'' + u) + '$');
+
+		let match = value.match(regex);
+
+		if (!match)
+			return null;
+
+		let result = {};
+
+		names.forEach((u, i) => {
+			result[u] = match[i + 1];
+		});
+
+		return result;
 	}
 
 	let elementAttributeChangeReflects = {
@@ -113,7 +140,7 @@ function bindDom(model, selector) {
 		textNode: node => {
 			let template = node.nodeValue;
 
-			let newText = template.replace(rep, (u, v) => {
+			let newText = template.replace(reg, (u, v) => {
 				model.$_emitter.on(v, val => {
 					updateNode(node, template);
 				});
@@ -129,31 +156,39 @@ function bindDom(model, selector) {
 		attribute: (node, attribute) => {
 			let template = attribute.value;
 
-			let newText = template.replace(rep, (u, v) => {
+			let handler = () => {
+				let values = fetchValues(node, attribute, template);
+
+				if (!values) {
+					updateAttribute(node, attribute, template);
+					return;
+				}
+
+				template.replace(reg, (u, v) => {
+					model[v] = values[v];
+					model.$_listener.emit(v);
+
+					return u;
+				});
+			};
+
+			if (elementAttributeChangeReflects.hasOwnProperty(node.nodeName)) {
+				let eventReflects = elementAttributeChangeReflects[node.nodeName];
+
+				if (eventReflects.hasOwnProperty(attribute.name)) {
+					eventReflects[attribute.name](node, handler);
+				}
+			}
+
+			let newText = template.replace(reg, (u, v) => {
 				model.$_emitter.on(v, val => {
 					updateAttribute(node, attribute, template);
 				});
 
-				let eventReflects;
-				if (elementAttributeChangeReflects.hasOwnProperty(node.nodeName)) {
-					eventReflects = elementAttributeChangeReflects[node.nodeName];
-				} else {
-					eventReflects = {};
-				}
-
-				if (eventReflects.hasOwnProperty(attribute.name)) {
-					eventReflects[attribute.name](node, () => {
-						model.$_listener.emit(v);
-						model[v] = getValue(node, attribute);
-						// updateAttribute(node, attribute, template);
-					});
-				}
-
 				return model[v];
 			});
 
-			if (template !== newText)
-				attribute.value = newText;
+			setAttributeValue(node, attribute, newText);
 		},
 	};
 
