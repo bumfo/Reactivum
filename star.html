@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<title>Ratings</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<script src="/s/modular.js"></script>
+<script>require('./ready.js');</script>
+
+<div id="ratings">
+
+<style>
+.star {
+	position: relative;
+	width: 1em;
+	float: left;
+}
+.star::before {
+	content: '\2605';
+	color: #ccc;
+}
+.star::after {
+	content: '\2605';
+	position: absolute;
+	color: #6886cc;
+	left: 0;
+	overflow: hidden;
+}
+.star:nth-child({{ floorPlus1 }})::after {
+	width: {{ fractionalPercentage }};
+}
+.star:nth-child({{ floorPlus1 }}) ~ .star::after {
+	width: 0%;
+}
+#star:hover > .star::after {
+	width: 100%;
+}
+.star:hover ~ .star::after {
+	width: 0%!important;
+}
+</style>
+
+<div id="star">
+
+<span class="star"></span>
+<span class="star"></span>
+<span class="star"></span>
+<span class="star"></span>
+<span class="star"></span>
+
+</div>
+
+</div>
+
+<script>require('./star.js');</script>

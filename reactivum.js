@@ -171,8 +171,10 @@ function bindDom(model, selector) {
 				}
 
 				template.replace(reg, (u, v) => {
-					model[v] = values[v];
-					model.$_listener.emit(v);
+					if (model[v] !== values[v]) {
+						model[v] = values[v];
+						model.$_listener.emit(v);
+					}
 
 					return u;
 				});

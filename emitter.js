@@ -2,8 +2,17 @@ class Emitter {
 	constructor() {
 		this._callbacks = new Map();
 	}
-	on(event, listener) {
+	onExact(event, listener) {
 		this.getListeners(event).push(listener);
+	}
+	onAny(events, listener) {
+		events.forEach(event => this.onExact(event, listener));
+	}
+	on(selector, listener) {
+		if (typeof selector === 'string')
+			this.onAny(selector.split(' '), listener);
+		else
+			this.onAny(selector, listener);
 	}
 	emitRest(event, ...args) {
 		var arr = this.getListeners(event);
