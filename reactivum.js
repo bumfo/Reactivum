@@ -5,11 +5,16 @@ class Reactive {
 	constructor(model) {
 		this.$_model = model;
 		this.$_emitter = new Emitter();
+
 		this.$_listener = new Emitter();
+		this.$_observer = new Emitter();
 	}
 
 	$listen(name, fn) {
 		this.$_listener.on(name, fn);
+	}
+	$watch(name, fn) {
+		this.$_observer.on(name, fn);
 	}
 }
 
@@ -22,6 +27,7 @@ function Model(model) {
 			get: () => model[name],
 			set: val => {
 				model[name] = val;
+				reactive.$_observer.emit(name, val);
 				reactive.$_emitter.emit(name, val);
 			},
 		});
